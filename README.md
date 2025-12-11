@@ -4,6 +4,13 @@ Anilyzer Data Export extracts and exports your (or anyone else's) AniList data i
 
 
 ## Running 
+
+```bash
+git clone https://github.com/whoswhip/anilyzer-data-exporter
+cd anilyzer-data-exporter
+npm install
+```
+
 ### Production?
 ```bash
 npm run build
