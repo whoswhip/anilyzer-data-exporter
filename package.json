@@ -1,0 +1,24 @@
+{
+  "name": "anilyzer-data-exporter",
+  "version": "1.0.0",
+  "description": "Export AniList user data to JSON format",
+  "license": "MIT",
+  "author": "whoswhip",
+  "type": "module",
+  "main": "build/index.js",
+  "scripts": {
+    "build": "tsc",
+    "start": "node build/index.js"
+  },
+  "devDependencies": {
+    "@types/node": "^25.0.0",
+    "@types/yargs": "^17.0.35",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.9.3",
+    "yargs": "^18.0.0"
+  },
+  "dependencies": {
+    "graphql": "^16.12.0",
+    "graphql-request": "^7.3.5"
+  }
+}
