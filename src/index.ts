@@ -91,6 +91,8 @@ async function main(): Promise<void> {
   const mediaList = await fetchAllMediaListEntries(userId, token);
   const activityList = await fetchAllActivityEntries(userId, token);
 
+  console.log(`Fetched ${mediaList.length} media list entries and ${activityList.length} activity entries`);
+
   const advancedScoreNames = buildAdvancedScoreNames(mediaList);
   const animeCustomLists = new Set<string>();
   const mangaCustomLists = new Set<string>();
@@ -150,6 +152,10 @@ async function main(): Promise<void> {
       private: 0,
     };
   });
+
+  if (activityList.length !== activity.length) {
+    throw new Error('Activity list length mismatch after transformation');
+  }
 
   const sortedAnimeList = Array.from(animeCustomLists).sort((a, b) => a.localeCompare(b));
   const sortedMangaList = Array.from(mangaCustomLists).sort((a, b) => a.localeCompare(b));
