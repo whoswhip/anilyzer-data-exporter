@@ -59,13 +59,16 @@ export function extractTrueKeys(value: Record<string, boolean> | null): string[]
 }
 
 export function actionTypeFromActivityStatus(status: string): number {
+    if (!status) {
+        return 0;
+    }
     const normalized = status.toLowerCase();
     for (const [key, value] of Object.entries(actionTypeMap)) {
         if (normalized.includes(key)) {
             return value;
         }
     }
-    return 3;
+    return 0;
 }
 
 export function buildAdvancedScoreNames(entries: MediaListEntry[]): string[] {
