@@ -205,7 +205,7 @@ async function main(): Promise<void> {
     user: {
       user_name: username,
       about: userData.User.about,
-      avatar_url: userData.User.avatar?.large ?? null,
+      avatar_url: userData.User.avatar?.large?.split('/',).pop() ?? null,
       banner_url: userData.User.bannerImage ?? null,
       custom_lists: {
         anime: sortedAnimeList,
