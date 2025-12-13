@@ -40,16 +40,27 @@ async function fetchAllPaginatedEntries<T>(
   let page = startingPage ?? 1;
 
   while (true) {
-    const data = await client.request({
-      document: query,
-      variables: { page, perPage, userId },
-      requestHeaders: token ? { Authorization: `Bearer ${token}` } : {},
-    });
-    const entries = extractEntries(data);
-    allEntries.push(...entries);
+    try {
+      const data = await client.request({
+        document: query,
+        variables: { page, perPage, userId },
+        requestHeaders: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      const entries = extractEntries(data);
+      allEntries.push(...entries);
 
-    if (entries.length < perPage) break;
-    page++;
+      if (entries.length < perPage) break;
+      page++;
+    } catch (error: any) {
+      const response = error?.response;
+      if (response?.status === 429) {
+        const retryAfter = parseInt(response.headers?.['Retry-After'] ?? '1', 10);
+        await new Promise(resolve => setTimeout(resolve, retryAfter));
+        continue;
+      }
+      throw error;
+    }
+
     await new Promise((resolve) => setTimeout(resolve, delay));
   }
 
@@ -192,6 +203,10 @@ async function main(): Promise<void> {
 
   const output: ExportOutput = {
     user: {
+      user_name: username,
+      about: userData.User.about,
+      avatar_url: userData.User.avatar?.large ?? null,
+      banner_url: userData.User.bannerImage ?? null,
       custom_lists: {
         anime: sortedAnimeList,
         manga: sortedMangaList,

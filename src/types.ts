@@ -34,6 +34,10 @@ export type ActivityEntry = {
 };
 
 export type GdprUser = {
+    user_name: string;
+    about: string | null;
+    avatar_url: string | null;
+    banner_url: string | null;
     custom_lists: {
         anime: string[];
         manga: string[];

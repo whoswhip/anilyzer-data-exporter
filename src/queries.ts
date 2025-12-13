@@ -4,6 +4,11 @@ export const userQuery = gql`
   query User($name: String) {
     User(name: $name) {
       id
+      avatar {
+        large
+      }
+      bannerImage
+      about
     }
   }
 `;
