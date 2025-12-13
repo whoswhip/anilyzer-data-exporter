@@ -89,3 +89,10 @@ export function mapAdvancedScores(entry: MediaListEntry, orderedNames: string[])
     if (!entry.advancedScores || orderedNames.length === 0) return [];
     return orderedNames.map((name) => entry.advancedScores?.[name] ?? 0);
 }
+export function deduplicateById<T extends { id: number }>(arr: T[]): T[] {
+    const seen = new Map<number, T>();
+    for (const item of arr) {
+        seen.set(item.id, item);
+    }
+    return Array.from(seen.values());
+}

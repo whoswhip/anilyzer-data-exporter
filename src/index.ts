@@ -2,7 +2,7 @@
 import yargs from 'yargs';
 import { hideBin } from 'yargs/helpers';
 import { GraphQLClient } from 'graphql-request';
-import { writeFile } from 'node:fs/promises';
+import { writeFile, readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { userQuery, mediaListQuery, activityQuery } from './queries.ts';
 import type {
@@ -21,6 +21,7 @@ import {
   actionTypeFromActivityStatus,
   buildAdvancedScoreNames,
   mapAdvancedScores,
+  deduplicateById,
 } from './utils.ts';
 
 const argv = yargs(hideBin(process.argv));
@@ -31,11 +32,12 @@ async function fetchAllPaginatedEntries<T>(
   query: string,
   userId: number,
   extractEntries: (data: unknown) => T[],
-  token?: string
+  token?: string,
+  startingPage?: number
 ): Promise<T[]> {
   const perPage = 50;
   let allEntries: T[] = [];
-  let page = 1;
+  let page = startingPage ?? 1;
 
   while (true) {
     const data = await client.request({
@@ -54,26 +56,28 @@ async function fetchAllPaginatedEntries<T>(
   return allEntries;
 }
 
-async function fetchAllMediaListEntries(userId: number, token?: string): Promise<MediaListEntry[]> {
+async function fetchAllMediaListEntries(userId: number, token?: string, startingPage?: number): Promise<MediaListEntry[]> {
   return fetchAllPaginatedEntries(
     mediaListQuery,
     userId,
     (data: unknown) => (data as { Page: { mediaList: MediaListEntry[] } }).Page.mediaList,
-    token
+    token,
+    startingPage
   );
 }
 
-async function fetchAllActivityEntries(userId: number, token?: string): Promise<ActivityEntry[]> {
+async function fetchAllActivityEntries(userId: number, token?: string, startingPage?: number): Promise<ActivityEntry[]> {
   return fetchAllPaginatedEntries(
     activityQuery,
     userId,
     (data: unknown) => (data as { Page: { activities: ActivityEntry[] } }).Page.activities,
-    token
+    token,
+    startingPage
   );
 }
 
 function printUsageAndExit(): void {
-  console.error('Usage: node index.js --username <AniList username> [--token <API token>]');
+  console.error('Usage: node index.js --username <AniList username> [--token <API token>] [--update-data] [--output <output file>] [-o <output file>]');
   process.exit(1);
 }
 
@@ -81,15 +85,38 @@ async function main(): Promise<void> {
   const parsed = await argv.parseAsync();
   const username = parsed.username as string;
   let token = parsed.token as string | undefined;
+  let outputPath: string = (parsed.output ?? parsed.o ?? 'data-export.json') as string;
 
   if (!username) {
     printUsageAndExit();
   }
 
-  const userData = await client.request(userQuery, { name: username });
+  let activtiyStartingPage: number | undefined = undefined;
+  let listStartingPage: number | undefined = undefined;
+  let existingLists: GdprListEntry[] = [];
+  let existingActivity: GdprActivityEntry[] = [];
+  let existingUser: ExportOutput["user"] | undefined = undefined;
+  if (parsed['update-data']) {
+    const existingPath = path.join(process.cwd(), 'data-export.json');
+    try {
+      const existingDataRaw = await readFile(existingPath, 'utf8');
+      const existingData = JSON.parse(existingDataRaw) as ExportOutput;
+      existingLists = existingData.lists || [];
+      existingActivity = existingData.activity || [];
+      existingUser = existingData.user;
+      listStartingPage = Math.floor(existingLists.length / 50);
+      activtiyStartingPage = Math.floor(existingActivity.length / 50);
+      console.log(`Resuming from media list page ${listStartingPage} and activity page ${activtiyStartingPage}`);
+    } catch (error) {
+      console.warn('Could not read existing data-export.json, starting from scratch');
+      console.warn(error);
+    }
+  }
+
+  const userData = await client.request(userQuery, { name: username }, token ? { Authorization: `Bearer ${token}` } : {});
   const userId = userData.User.id as number;
-  const mediaList = await fetchAllMediaListEntries(userId, token);
-  const activityList = await fetchAllActivityEntries(userId, token);
+  const mediaList = await fetchAllMediaListEntries(userId, token, listStartingPage);
+  const activityList = await fetchAllActivityEntries(userId, token, activtiyStartingPage);
 
   console.log(`Fetched ${mediaList.length} media list entries and ${activityList.length} activity entries`);
 
@@ -160,6 +187,9 @@ async function main(): Promise<void> {
   const sortedAnimeList = Array.from(animeCustomLists).sort((a, b) => a.localeCompare(b));
   const sortedMangaList = Array.from(mangaCustomLists).sort((a, b) => a.localeCompare(b));
 
+  const combinedLists = deduplicateById([...existingLists, ...lists]);
+  const combinedActivity = deduplicateById([...existingActivity, ...activity]);
+
   const output: ExportOutput = {
     user: {
       custom_lists: {
@@ -170,14 +200,15 @@ async function main(): Promise<void> {
         active: advancedScoreNames.length > 0,
         names: advancedScoreNames,
       },
+      ...(existingUser ? existingUser : {}),
     },
-    lists,
-    activity,
+    lists: combinedLists,
+    activity: combinedActivity,
   };
 
-  const outputPath = path.join(process.cwd(), 'data-export.json');
+
   await writeFile(outputPath, JSON.stringify(output, null, 2), 'utf8');
-  console.log(`Wrote ${lists.length} lists and ${activity.length} activity items to ${outputPath}`);
+  console.log(`Exported data to ${outputPath}`);
 }
 
 main().catch((error) => {
