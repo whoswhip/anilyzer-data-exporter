@@ -203,7 +203,7 @@ async function main(): Promise<void> {
 
   const output: ExportOutput = {
     user: {
-      user_name: username,
+      display_name: username,
       about: userData.User.about,
       avatar_url: userData.User.avatar?.large?.split('/',).pop() ?? null,
       banner_url: userData.User.bannerImage ?? null,
