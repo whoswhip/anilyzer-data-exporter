@@ -117,12 +117,20 @@ async function main(): Promise<void> {
       existingUser = existingData.user;
       listStartingPage = Math.floor(existingLists.length / 50);
       activtiyStartingPage = Math.floor(existingActivity.length / 50);
+
+      if (parsed['force-list-update']) {
+        existingLists = [];
+        listStartingPage = 1;
+      }
+
       console.log(`Resuming from media list page ${listStartingPage} and activity page ${activtiyStartingPage}`);
     } catch (error) {
       console.warn('Could not read existing data-export.json, starting from scratch');
       console.warn(error);
     }
   }
+
+
 
   const userData = await client.request(userQuery, { name: username }, token ? { Authorization: `Bearer ${token}` } : {});
   const userId = userData.User.id as number;
